@@ -1,0 +1,291 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>HKD → INR Converter</title>
+<link rel="manifest" href="manifest.json">
+<meta name="theme-color" content="#132a13">
+<link rel="apple-touch-icon" href="icon-192.png">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+<meta name="apple-mobile-web-app-title" content="HKD-INR">
+<style>
+  :root{
+    --bg:#152616;
+    --card:#ffffff;
+    --ink:#14210f;
+    --muted:#5c6b57;
+    --border:#dfe3da;
+    --accent:#b9e66d;
+    --accent-ink:#1c2b12;
+    --danger:#c0392b;
+    --success:#1c7c34;
+    --radius:22px;
+    --font-sans:-apple-system,BlinkMacSystemFont,"Inter","Segoe UI",Roboto,sans-serif;
+  }
+  *{box-sizing:border-box;}
+  html,body{width:100%; overflow-x:hidden;}
+  body{
+    margin:0; min-height:100vh; min-height:100dvh;
+    display:flex; align-items:center; justify-content:center;
+    background:var(--bg);
+    font-family:var(--font-sans);
+    color:var(--ink);
+    padding:min(6vw,24px);
+    -webkit-font-smoothing:antialiased;
+  }
+
+  .card{
+    width:100%; max-width:400px;
+    background:var(--card);
+    border-radius:var(--radius);
+    padding:clamp(20px,5.5vw,28px) clamp(18px,5vw,24px) clamp(24px,6vw,28px);
+    box-shadow:0 30px 60px rgba(0,0,0,.35);
+    position:relative;
+  }
+
+  .topbar{
+    display:flex; align-items:center; justify-content:center; gap:6px;
+    text-align:center; margin-bottom:6px; position:relative;
+  }
+  .topbar .rate-label{
+    font-size:14px; font-weight:700; color:var(--ink);
+  }
+  .settings-btn{
+    position:absolute; right:0; top:50%; transform:translateY(-50%);
+    width:32px; height:32px; border-radius:50%;
+    border:1px solid var(--border); background:#fff;
+    display:flex; align-items:center; justify-content:center;
+    cursor:pointer; -webkit-tap-highlight-color:transparent; padding:0;
+  }
+  .settings-btn svg{width:16px; height:16px; stroke:var(--muted);}
+  .settings-btn:active{background:#f2f2f2;}
+
+  .rate-value{
+    text-align:center; font-size:15px; font-weight:700; color:var(--ink);
+    margin-bottom:22px;
+  }
+  .rate-value .arrow{color:var(--muted); font-weight:500;}
+
+  .field{margin-bottom:6px;}
+  label{
+    display:block; font-size:13px; font-weight:600; color:var(--ink);
+    margin-bottom:8px;
+  }
+
+  .row{
+    display:flex; align-items:center; gap:8px; min-width:0;
+    border:1.5px solid var(--border); border-radius:14px;
+    padding:6px 8px 6px 16px;
+    transition:border-color .15s ease;
+  }
+  .row:focus-within{border-color:var(--ink);}
+
+  input[type=number]{
+    flex:1 1 auto; min-width:0; width:100%;
+    border:none; outline:none; background:transparent;
+    color:var(--ink);
+    font-size:28px; font-weight:700;
+    font-variant-numeric:tabular-nums;
+    padding:8px 0;
+  }
+  input[type=number]::-webkit-outer-spin-button,
+  input[type=number]::-webkit-inner-spin-button{ -webkit-appearance:none; margin:0; }
+  input[readonly]{ color:var(--ink); }
+
+  .badge{
+    flex:0 0 auto; display:flex; align-items:center; gap:6px;
+    background:#f4f5f2; border-radius:999px; padding:8px 12px 8px 8px;
+    font-weight:700; font-size:15px; color:var(--ink); white-space:nowrap;
+  }
+  .flag{
+    width:24px; height:24px; border-radius:50%;
+    display:flex; align-items:center; justify-content:center;
+    font-size:13px; overflow:hidden; flex:0 0 auto;
+  }
+  .flag.hkd{background:#de2910;}
+  .flag.inr{background:linear-gradient(#ff9933 0 33%, #fff 33% 66%, #138808 66% 100%); position:relative;}
+  .flag.inr::after{content:"◉"; color:#000080; font-size:9px; position:absolute; top:50%; left:50%; transform:translate(-50%,-50%);}
+  .flag.hkd::after{content:"✽"; color:#fff; font-size:12px;}
+
+  .swap-divider{
+    display:flex; align-items:center; justify-content:center;
+    margin:2px 0;
+    position:relative;
+    height:36px;
+  }
+  .swap-divider::before{
+    content:""; position:absolute; left:0; right:0; top:50%;
+    border-top:1px solid var(--border);
+  }
+  .swap-icon{
+    position:relative; z-index:1;
+    width:34px; height:34px; border-radius:50%;
+    background:var(--accent); display:flex; align-items:center; justify-content:center;
+    font-size:14px; color:var(--accent-ink);
+  }
+
+  .status{
+    font-size:12px; color:var(--muted); margin-top:14px; text-align:center; line-height:1.4;
+  }
+  .status.err{color:var(--danger);}
+  .status.ok{color:var(--success);}
+
+  /* Settings panel (slide-up sheet) */
+  .overlay{
+    position:fixed; inset:0; background:rgba(0,0,0,.5);
+    display:none; align-items:flex-end; justify-content:center;
+    z-index:10;
+  }
+  .overlay.open{display:flex;}
+  .sheet{
+    width:100%; max-width:400px;
+    background:#fff; border-radius:20px 20px 0 0;
+    padding:22px clamp(18px,5vw,24px) clamp(22px,6vw,28px);
+  }
+  .sheet-handle{
+    width:36px; height:4px; background:var(--border); border-radius:99px;
+    margin:0 auto 16px;
+  }
+  .sheet h2{ font-size:15px; font-weight:700; margin:0 0 4px; }
+  .sheet .sheet-sub{ font-size:12px; color:var(--muted); margin-bottom:16px; }
+  .sheet label{ font-size:13px; font-weight:600; margin-bottom:8px; }
+  .sheet input[type=number]{
+    width:100%; border:1.5px solid var(--border); border-radius:14px;
+    padding:12px 14px; font-size:16px; font-weight:600; color:var(--ink);
+    outline:none; background:transparent;
+  }
+  .sheet input[type=number]:focus{ border-color:var(--ink); }
+  .sheet-actions{ display:flex; gap:10px; margin-top:18px; }
+  .sheet-btn{
+    flex:1; border:none; border-radius:14px; padding:13px; font-size:14px; font-weight:700;
+    cursor:pointer; -webkit-tap-highlight-color:transparent;
+  }
+  .sheet-btn.apply{ background:var(--accent); color:var(--accent-ink); }
+  .sheet-btn.close{ background:#f4f5f2; color:var(--ink); }
+  .sheet-btn:active{ opacity:.8; }
+
+  @media (max-width:360px){
+    input[type=number]{font-size:24px;}
+  }
+</style>
+</head>
+<body>
+  <div class="card">
+    <div class="topbar">
+      <span class="rate-label">Mid-market exchange rate</span>
+      <button class="settings-btn" id="settingsBtn" aria-label="Settings">
+        <svg viewBox="0 0 24 24" fill="none" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="3"></circle><path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 1 1-2.83 2.83l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 0 1-4 0v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 1 1-2.83-2.83l.06-.06a1.65 1.65 0 0 0 .33-1.82 1.65 1.65 0 0 0-1.51-1H3a2 2 0 0 1 0-4h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 1 1 2.83-2.83l.06.06a1.65 1.65 0 0 0 1.82.33H9a1.65 1.65 0 0 0 1-1.51V3a2 2 0 0 1 4 0v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 1 1 2.83 2.83l-.06.06a1.65 1.65 0 0 0-.33 1.82V9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 0 1 0 4h-.09a1.65 1.65 0 0 0-1.51 1z"></path></svg>
+      </button>
+    </div>
+    <div class="rate-value">$1 HKD <span class="arrow">=</span> <span id="rateDisplay">…</span> INR</div>
+
+    <div class="field">
+      <label>Amount</label>
+      <div class="row">
+        <input type="number" id="hkd" value="100" step="any" inputmode="decimal">
+        <div class="badge"><span class="flag hkd"></span>HKD</div>
+      </div>
+    </div>
+
+    <div class="swap-divider"><div class="swap-icon">↓</div></div>
+
+    <div class="field">
+      <label>Converted to</label>
+      <div class="row">
+        <input type="number" id="inr" value="0" step="any" readonly>
+        <div class="badge"><span class="flag inr"></span>INR</div>
+      </div>
+    </div>
+
+    <div class="status" id="status">Fetching live rate…</div>
+  </div>
+
+  <div class="overlay" id="overlay">
+    <div class="sheet">
+      <div class="sheet-handle"></div>
+      <h2>Manual rate override</h2>
+      <div class="sheet-sub">Use this if you're offline or want to fix a custom rate.</div>
+      <label>1 HKD = ? INR</label>
+      <input type="number" id="manualRate" step="any" placeholder="e.g. 10.85">
+      <div class="sheet-actions">
+        <button class="sheet-btn close" id="closeSheet">Close</button>
+        <button class="sheet-btn apply" id="applySheet">Use live rate</button>
+      </div>
+    </div>
+  </div>
+
+<script>
+let rate = null; // 1 HKD in INR
+const hkdInput = document.getElementById('hkd');
+const inrInput = document.getElementById('inr');
+const rateDisplay = document.getElementById('rateDisplay');
+const statusEl = document.getElementById('status');
+const manualRate = document.getElementById('manualRate');
+const overlay = document.getElementById('overlay');
+
+function recalc(){
+  if(!rate) return;
+  const v = parseFloat(hkdInput.value);
+  inrInput.value = isNaN(v) ? '' : (v * rate).toFixed(2);
+}
+
+hkdInput.addEventListener('input', recalc);
+
+document.getElementById('settingsBtn').addEventListener('click', () => {
+  overlay.classList.add('open');
+});
+document.getElementById('closeSheet').addEventListener('click', () => {
+  overlay.classList.remove('open');
+});
+overlay.addEventListener('click', (e) => {
+  if(e.target === overlay) overlay.classList.remove('open');
+});
+document.getElementById('applySheet').addEventListener('click', () => {
+  fetchRate();
+  overlay.classList.remove('open');
+});
+
+manualRate.addEventListener('input', () => {
+  const v = parseFloat(manualRate.value);
+  if(!isNaN(v) && v > 0){
+    rate = v;
+    rateDisplay.textContent = rate.toFixed(2);
+    statusEl.textContent = 'Using manual rate.';
+    statusEl.className = 'status';
+    recalc();
+  }
+});
+
+async function fetchRate(){
+  statusEl.textContent = 'Fetching live rate…';
+  statusEl.className = 'status';
+  try{
+    const res = await fetch('https://open.er-api.com/v6/latest/HKD');
+    if(!res.ok) throw new Error('Bad response');
+    const data = await res.json();
+    if(data.result !== 'success' || !data.rates || !data.rates.INR){
+      throw new Error('Malformed data');
+    }
+    rate = data.rates.INR;
+    rateDisplay.textContent = rate.toFixed(2);
+    manualRate.value = '';
+    statusEl.textContent = 'Live rate loaded';
+    statusEl.className = 'status ok';
+    recalc();
+  }catch(e){
+    statusEl.textContent = 'Could not fetch live rate. Tap the settings icon to set one manually.';
+    statusEl.className = 'status err';
+    rateDisplay.textContent = '—';
+  }
+}
+
+fetchRate();
+
+if('serviceWorker' in navigator && location.protocol.startsWith('http')){
+  navigator.serviceWorker.register('sw.js').catch(()=>{});
+}
+</script>
+</body>
+</html>
